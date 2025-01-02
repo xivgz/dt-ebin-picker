@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0">
+<title>Ebin Picker</title>
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
+<style>
+body {
+    background:#FFF;
+    color:#000;
+    font-family:verdana, sans-serif;
+    font-size:10pt;
+    margin:0;
+    padding:10px;
+}
+
+a:link, a:visited {
+    color:goldenrod;
+    font-weight:bold;
+    text-decoration:none;
+}
+
+a:active, a:hover {
+    color: #f2e0b1;
+}
+
+.info {
+    font-weight:bold;
+}
+
+button {
+    font-family:inherit;
+    cursor:pointer;
+    border:0;
+    border-radius:4px;
+    padding:0.3em 0.5em;
+    background:#CCC;
+    color:#000;
+}
+
+button:hover {
+    background:#DDD;
+}
+
+button.disabled {
+    background:#DDD;
+    color:#888;
+    cursor:not-allowed;
+}
+
+button.disabled:hover {
+    background:#DDD;
+}
+
+#container {
+    position:relative;
+    margin-left:-10px;
+    margin-right:-10px;
+    padding:10px;
+    overflow:hidden;
+}
+
+@media (min-width:1024px) {
+    /* Put the found favorites beside the picking div when the window is sufficiently large */
+    #picking {
+        float:left;
+        width:636px;
+    }
+
+    #secondary {
+        margin-left:646px;
+    }
+}
+
+@media (min-width:1300px) {
+    /* Once we get to the point where 636px is less than half of the width of the screen, make the picking div just take up half */
+    #picking {
+        width:50%;
+    }
+
+    #secondary {
+        margin-left:51%;
+    }
+}
+
+#pick {
+    background:goldenrod;
+    color:#FFF;
+    font-size:larger;
+    font-weight:bold;
+    width:6em;
+    border-radius:5px;
+    margin-right:10px;
+}
+
+#pick.disabled {
+    background:#f2e0b1;
+}
+
+#pick:hover {
+    background:#f2e0b1;
+}
+
+.item-list {
+    padding:0;
+    list-style-type:none;
+    line-height:100px;
+}
+
+.item-list li {
+    margin:2px;
+    display:inline-block;
+    height:175px;
+    width:175px;
+    line-height:100px;
+    border:4px solid transparent;
+    text-align:center;
+    position:relative;
+    vertical-align:top;
+    overflow:hidden;
+    border-radius:10%;
+    background:#F7F7F7;
+    color:#000;
+}
+
+.item-list li img {
+    vertical-align:top;
+    max-height:100%;
+    max-width:100%;
+}
+
+.item-list li span {
+    display:inline-block;
+    vertical-align:middle;
+    line-height:1.2;
+}
+
+@media (max-width:636px) {
+    .item-list {
+        line-height:75px;
+    }
+
+    .item-list li {
+        line-height:75px;
+        height:75px;
+        width:75px;
+    }
+}
+
+@media (max-width:423px) {
+    .item-list {
+        line-height:50px;
+    }
+
+    .item-list li {
+        line-height:50px;
+        height:50px;
+        width:50px;
+    }
+}
+
+#evaluating li {
+    cursor:pointer;
+}
+
+#favorites li {
+    cursor:move;
+	height: 150px;
+	width: 150px;
+}
+
+.item-list li:hover {
+    background: #f2e0b1;
+}
+
+.item-list.sorting li:hover {
+    background:#F7F7F7;
+}
+
+#evaluating li.selected {
+    border:4px outset goldenrod;
+}
+
+#evaluating, #buttons {
+    text-align:center;
+    margin:auto;
+}
+
+#evaluating li.notice {
+    width:auto;
+    height:auto;
+    max-width:260px;
+    margin:auto;
+    background:#F7F7F7;
+    border-radius:10px;
+    padding:30px 30px;
+    color:#000;
+    text-align:center;
+    line-height:1.4;
+    cursor:auto;
+    font-size:10pt;
+}
+
+#buttons {
+    margin-top:20px;
+    position:relative;
+    z-index:3;
+	scale:115%;
+}
+
+input[type="checkbox"] {
+  accent-color: goldenrod;
+}
+</style>
+</head>
+<body>
+<h1>Dawntrail Ebin Picker</h1>
+
+<p>Pick your favorite characters from the batches presented to you. Eventually your favorite ebins will start to come out in order under "Found Favorites." You can continue for as long as you'd like. You are also able to reorder your favorites after they have been found.
+<br><br>The algorithm is elimination-style; the characters you pick will eliminate those you did not pick. <strong>So if you are stuck in a loop, you must pick fewer or stop passing.</strong> Passing is essentially the same as picking everyone in the batch.
+Those that get eliminated will show up again when the characters they have been eliminated by are on the found favorites list.
+<br><em>Progress is saved when you close out of the page.</em></p>
+<p>
+<a href="https://github.com/xivgz/dt-ebin-picker#faq">FAQ and Code</a> </p>
+<p>
+<strong>Manual reset:</strong> <button id="reset">Reset</button>
+</p>
+<hr style="margin:0px"> 
+
+<div id="container">
+<div id="picking">
+<ul id="evaluating" class="item-list">
+</ul>
+<p id="buttons"><button id="pick">Pick</button> <button id="pass">Pass</button> <button id="undo">Undo</button> <button id="redo">Redo</button></p>
+<p style="text-align:center">Characters remaining before next favorite ebin is found: <span style="font-weight: bold" id="remaining"></span></p>
+</div>
+
+<div id="secondary">
+<p><strong>Filter by race:</strong> <span style="font-size:65%; opacity:50%">Deselecting filters with found favorites will remove those that matched the filter!</span><br>
+<label>(<input type="checkbox" id="races-all"> Select all)</label>
+<label><input type="checkbox" name="races" class="races" value="au ra"> Au Ra</label>
+<label><input type="checkbox" name="races" class="races" value="elezen"> Elezen</label>
+<label><input type="checkbox" name="races" class="races" value="highlander"> Highlander</label>
+<label><input type="checkbox" name="races" class="races" value="hrothgar"> Hrothgar</label>
+<label><input type="checkbox" name="races" class="races" value="lala"> Lalafell</label>
+<br>
+<label><input type="checkbox" name="races" class="races" value="middie"> Midlander</label>
+<label><input type="checkbox" name="races" class="races" value="miqote"> Miqo'te</label>
+<label><input type="checkbox" name="races" class="races" value="roe"> Roegadyn</label>
+<label><input type="checkbox" name="races" class="races" value="viera"> Viera</label>
+<label><input type="checkbox" name="races" class="races" value="etc"> Other</label>
+</p>
+<p><strong>Filter by gender:</strong><br>
+<label><input type="checkbox" name="sexes" class="sexes" value="female"> Female</label>
+<label><input type="checkbox" name="sexes" class="sexes" value="male"> Male</label>
+<label><input type="checkbox" name="sexes" class="sexes" value="other"> Other</label></p>
+<p>
+<label>Minimum batch size:<input type="number" id="min-batch-size" value="3" min="2" max="15" step="1"></label>
+<label>Maximum batch size: <input type="number" id="max-batch-size" value="20" min="5" max="40" step="1"></label>
+<br><span style="font-size:65%; opacity:50%">Set the number of characters shown at a time. Defaults are minimum 3 and maximum 20.
+<br>Reducing the maximum batch size may make it easier to pick, but it will also take longer to get through each round.
+</span></p>
+
+<h2>Found favorites</h2>
+
+<ol id="favorites" class="item-list">
+</ol>
+</div>
+</div>
+
+<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script src="picker.js"></script>
+<script src="picker-ui.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.7.0/Sortable.min.js"></script>
+<script>
+'use strict';
+
+var items = [
+    // It's time for some ebinism.
+	{id: 'aufr1_1', image: './au/f/ra/1/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bw_1', image: './au/f/ra/1/blw/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bw_2', image: './au/f/ra/1/blw/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bw_3', image: './au/f/ra/1/blw/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bw_4', image: './au/f/ra/1/blw/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bp_1', image: './au/f/ra/1/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bp_2', image: './au/f/ra/1/bp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1bp_3', image: './au/f/ra/1/bp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1gt_1', image: './au/f/ra/1/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1ob_1', image: './au/f/ra/1/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1rp_1', image: './au/f/ra/1/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1rp_2', image: './au/f/ra/1/rp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1rp_3', image: './au/f/ra/1/rp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1rp_4', image: './au/f/ra/1/rp/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr1rp_5', image: './au/f/ra/1/rp/5.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2_1', image: './au/f/ra/2/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_1', image: './au/f/ra/2/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_2', image: './au/f/ra/2/bp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_3', image: './au/f/ra/2/bp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_4', image: './au/f/ra/2/bp/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_5', image: './au/f/ra/2/bp/5.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_6', image: './au/f/ra/2/bp/6.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_7', image: './au/f/ra/2/bp/7.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2bp_8', image: './au/f/ra/2/bp/8.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2gt_1', image: './au/f/ra/2/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2gt_2', image: './au/f/ra/2/gt/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2ob_1', image: './au/f/ra/2/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2ob_2', image: './au/f/ra/2/oyb/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr2rp_1', image: './au/f/ra/2/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3_1', image: './au/f/ra/3/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3_2', image: './au/f/ra/3/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3bp_1', image: './au/f/ra/3/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3gt_1', image: './au/f/ra/3/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3ob_1', image: './au/f/ra/3/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3ob_2', image: './au/f/ra/3/oyb/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3ob_3', image: './au/f/ra/3/oyb/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3rp_1', image: './au/f/ra/3/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr3rp_3', image: './au/f/ra/3/rp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4_1', image: './au/f/ra/4/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4_2', image: './au/f/ra/4/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4bw_1', image: './au/f/ra/4/blw/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4bw_2', image: './au/f/ra/4/blw/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4bp_1', image: './au/f/ra/4/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4bp_2', image: './au/f/ra/4/bp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4gt_1', image: './au/f/ra/4/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4ob_1', image: './au/f/ra/4/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4ob_2', image: './au/f/ra/4/oyb/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4ob_3', image: './au/f/ra/4/oyb/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4rp_1', image: './au/f/ra/4/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4rp_2', image: './au/f/ra/4/rp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufr4rp_3', image: './au/f/ra/4/rp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx_1', image: './au/f/xa/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx1_1', image: './au/f/xa/1/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx2bp_1', image: './au/f/xa/2/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx2gt_1', image: './au/f/xa/2/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx2rp_1', image: './au/f/xa/2/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3_1', image: './au/f/xa/3/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3bw_1', image: './au/f/xa/3/blw/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3gt_1', image: './au/f/xa/3/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3ob_1', image: './au/f/xa/3/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3ob_2', image: './au/f/xa/3/oyb/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx3ob_3', image: './au/f/xa/3/oyb/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4_1', image: './au/f/xa/4/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bw_1', image: './au/f/xa/4/blw/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bw_2', image: './au/f/xa/4/blw/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bw_3', image: './au/f/xa/4/blw/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bw_5', image: './au/f/xa/4/blw/5.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bw_6', image: './au/f/xa/4/blw/6.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bp_1', image: './au/f/xa/4/bp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bp_2', image: './au/f/xa/4/bp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bp_4', image: './au/f/xa/4/bp/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bp_5', image: './au/f/xa/4/bp/5.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4bp_6', image: './au/f/xa/4/bp/6.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4gt_1', image: './au/f/xa/4/gt/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4gt_2', image: './au/f/xa/4/gt/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4ob_1', image: './au/f/xa/4/oyb/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4ob_2', image: './au/f/xa/4/oyb/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4ob_3', image: './au/f/xa/4/oyb/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4ob_4', image: './au/f/xa/4/oyb/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4rp_1', image: './au/f/xa/4/rp/1.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4rp_2', image: './au/f/xa/4/rp/2.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4rp_3', image: './au/f/xa/4/rp/3.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4rp_4', image: './au/f/xa/4/rp/4.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aufx4rp_5', image: './au/f/xa/4/rp/5.jpg', race: 'au ra', sex: 'female'},
+	{id: 'aumr1_1', image: './au/m/ra/1/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr1_2', image: './au/m/ra/1/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr1_3', image: './au/m/ra/1/3.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr1_4', image: './au/m/ra/1/4.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr2_1', image: './au/m/ra/2/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr2_2', image: './au/m/ra/2/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr3_1', image: './au/m/ra/3/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr3_2', image: './au/m/ra/3/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumr3_3', image: './au/m/ra/3/3.jpg', race: 'au ra', sex: 'male'},
+//dupe	{id: 'aumr4_1', image: './au/m/ra/4/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx1_1', image: './au/m/xa/1/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx1_2', image: './au/m/xa/1/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx2_1', image: './au/m/xa/2/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx2_2', image: './au/m/xa/2/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx3_1', image: './au/m/xa/3/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx4_1', image: './au/m/xa/4/1.jpg', race: 'au ra', sex: 'male'},
+	{id: 'aumx4_2', image: './au/m/xa/4/2.jpg', race: 'au ra', sex: 'male'},
+	{id: 'elfbw_1', image: './el/f/blw/1.jpg', race: 'elezen', sex: 'female'},
+//dupe	{id: 'elfbw_2', image: './el/f/blw/2.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_1', image: './el/f/bp/1.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_2', image: './el/f/bp/2.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_3', image: './el/f/bp/3.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_4', image: './el/f/bp/4.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_5', image: './el/f/bp/5.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_6', image: './el/f/bp/6.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_7', image: './el/f/bp/7.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_8', image: './el/f/bp/8.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_10', image: './el/f/bp/10.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_11', image: './el/f/bp/11.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfbp_12', image: './el/f/bp/12.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_1', image: './el/f/gt/1.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_2', image: './el/f/gt/2.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_3', image: './el/f/gt/3.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_4', image: './el/f/gt/4.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_5', image: './el/f/gt/5.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfgt_6', image: './el/f/gt/6.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfob_1', image: './el/f/oyb/1.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfob_2', image: './el/f/oyb/2.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfob_3', image: './el/f/oyb/3.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfob_4', image: './el/f/oyb/4.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfob_5', image: './el/f/oyb/5.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfrp_1', image: './el/f/rp/1.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfrp_2', image: './el/f/rp/2.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfrp_3', image: './el/f/rp/3.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elfrp_4', image: './el/f/rp/4.jpg', race: 'elezen', sex: 'female'},
+	{id: 'elm_1', image: './el/m/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elm_2', image: './el/m/2.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmbw_1', image: './el/m/blw/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmbw_2', image: './el/m/blw/2.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmbp_1', image: './el/m/bp/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmbp_2', image: './el/m/bp/2.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmgt_1', image: './el/m/gt/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_1', image: './el/m/oyb/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_2', image: './el/m/oyb/2.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_3', image: './el/m/oyb/3.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_5', image: './el/m/oyb/5.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_6', image: './el/m/oyb/6.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_7', image: './el/m/oyb/7.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmob_8', image: './el/m/oyb/8.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmrp_1', image: './el/m/rp/1.jpg', race: 'elezen', sex: 'male'},
+	{id: 'elmrp_2', image: './el/m/rp/2.jpg', race: 'elezen', sex: 'male'},
+	{id: 'etc_1', image: './etc/1.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_2', image: './etc/2.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_3', image: './etc/3.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_4', image: './etc/4.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_5', image: './etc/5.jpg', race: 'highlander', sex: 'male'},
+	{id: 'etc_6', image: './etc/6.jpg', race: 'middie', sex: 'male'},
+	{id: 'etc_7', image: './etc/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'etc_8', image: './etc/8.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_9', image: './etc/9.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_10', image: './etc/10.jpg', race: 'viera', sex: 'male'},
+	{id: 'etc_11', image: './etc/11.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_12', image: './etc/12.jpg', race: 'etc', sex: 'other'},
+	{id: 'etc_13', image: './etc/13.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_14', image: './etc/14.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_15', image: './etc/15.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_16', image: './etc/16.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_17', image: './etc/17.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_18', image: './etc/18.jpg', race: 'etc', sex: 'male'},
+	{id: 'etc_19', image: './etc/19.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_20', image: './etc/20.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_21', image: './etc/21.jpg', race: 'etc', sex: 'female'},
+	{id: 'etc_22', image: './etc/22.jpg', race: 'etc', sex: 'male'},
+	{id: 'hlf_1', image: './hi/f/1.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlf_2', image: './hi/f/2.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_1', image: './hi/f/bp/1.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_2', image: './hi/f/bp/2.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_3', image: './hi/f/bp/3.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_4', image: './hi/f/bp/4.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_5', image: './hi/f/bp/5.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_6', image: './hi/f/bp/6.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_7', image: './hi/f/bp/7.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfbp_8', image: './hi/f/bp/8.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfgt_1', image: './hi/f/gt/1.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfgt_2', image: './hi/f/gt/2.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfgt_3', image: './hi/f/gt/3.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfgt_4', image: './hi/f/gt/4.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfgt_5', image: './hi/f/gt/5.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfob_1', image: './hi/f/oyb/1.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfob_2', image: './hi/f/oyb/2.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfob_3', image: './hi/f/oyb/3.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlfob_4', image: './hi/f/oyb/4.jpg', race: 'highlander', sex: 'female'},
+	{id: 'hlm_1', image: './hi/m/1.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_2', image: './hi/m/2.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_3', image: './hi/m/3.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_4', image: './hi/m/4.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_5', image: './hi/m/5.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_6', image: './hi/m/6.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_7', image: './hi/m/7.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_8', image: './hi/m/8.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_9', image: './hi/m/9.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_10', image: './hi/m/10.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlm_11', image: './hi/m/11.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmbp_1', image: './hi/m/bp/1.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmbp_3', image: './hi/m/bp/3.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmgt_1', image: './hi/m/gt/1.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmgt_2', image: './hi/m/gt/2.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmob_1', image: './hi/m/oyb/1.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hlmrp_1', image: './hi/m/rp/1.jpg', race: 'highlander', sex: 'male'},
+	{id: 'hrf_1', image: './hr/f/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrf_2', image: './hr/f/2.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfbw_1', image: './hr/f/blw/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfbw_2', image: './hr/f/blw/2.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfbp_1', image: './hr/f/bp/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfbp_2', image: './hr/f/bp/2.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfgt_1', image: './hr/f/gt/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfgt_2', image: './hr/f/gt/2.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_1', image: './hr/f/oyb/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_3', image: './hr/f/oyb/3.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_4', image: './hr/f/oyb/4.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_5', image: './hr/f/oyb/5.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_6', image: './hr/f/oyb/6.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_7', image: './hr/f/oyb/7.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_8', image: './hr/f/oyb/8.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfob_9', image: './hr/f/oyb/9.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrfrp_1', image: './hr/f/rp/1.jpg', race: 'hrothgar', sex: 'female'},
+	{id: 'hrm_1', image: './hr/m/1.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrm_2', image: './hr/m/2.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmbw_1', image: './hr/m/blw/1.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmbw_2', image: './hr/m/blw/2.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmgt_1', image: './hr/m/gt/1.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmgt_2', image: './hr/m/gt/2.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmgt_3', image: './hr/m/gt/3.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmob_1', image: './hr/m/oyb/1.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmob_2', image: './hr/m/oyb/2.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmob_3', image: './hr/m/oyb/3.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'hrmob_4', image: './hr/m/oyb/4.jpg', race: 'hrothgar', sex: 'male'},
+	{id: 'laf_1', image: './la/f/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'laf_2', image: './la/f/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'laf_3', image: './la/f/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafd_1', image: './la/f/dun/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafd_2', image: './la/f/dun/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafd_3', image: './la/f/dun/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafd_4', image: './la/f/dun/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafd_5', image: './la/f/dun/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_1', image: './la/f/dun/bp/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_2', image: './la/f/dun/bp/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_3', image: './la/f/dun/bp/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_4', image: './la/f/dun/bp/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_5', image: './la/f/dun/bp/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_6', image: './la/f/dun/bp/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_7', image: './la/f/dun/bp/7.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdbp_8', image: './la/f/dun/bp/8.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_1', image: './la/f/dun/gt/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_2', image: './la/f/dun/gt/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_3', image: './la/f/dun/gt/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_4', image: './la/f/dun/gt/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_5', image: './la/f/dun/gt/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdgt_6', image: './la/f/dun/gt/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_1', image: './la/f/dun/oyb/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_2', image: './la/f/dun/oyb/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_3', image: './la/f/dun/oyb/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_4', image: './la/f/dun/oyb/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_5', image: './la/f/dun/oyb/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_6', image: './la/f/dun/oyb/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_7', image: './la/f/dun/oyb/7.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_8', image: './la/f/dun/oyb/8.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_9', image: './la/f/dun/oyb/9.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdob_10', image: './la/f/dun/oyb/10.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_1', image: './la/f/dun/rp/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_2', image: './la/f/dun/rp/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_3', image: './la/f/dun/rp/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_4', image: './la/f/dun/rp/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_5', image: './la/f/dun/rp/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_6', image: './la/f/dun/rp/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_7', image: './la/f/dun/rp/7.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_8', image: './la/f/dun/rp/8.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_9', image: './la/f/dun/rp/9.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_10', image: './la/f/dun/rp/10.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_11', image: './la/f/dun/rp/11.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_12', image: './la/f/dun/rp/12.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_13', image: './la/f/dun/rp/13.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_15', image: './la/f/dun/rp/15.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafdrp_16', image: './la/f/dun/rp/16.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafp_1', image: './la/f/pla/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbw_1', image: './la/f/pla/blw/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_1', image: './la/f/pla/bp/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_2', image: './la/f/pla/bp/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_3', image: './la/f/pla/bp/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_4', image: './la/f/pla/bp/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_5', image: './la/f/pla/bp/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpbp_6', image: './la/f/pla/bp/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_1', image: './la/f/pla/gt/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_2', image: './la/f/pla/gt/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_3', image: './la/f/pla/gt/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_4', image: './la/f/pla/gt/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_5', image: './la/f/pla/gt/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_6', image: './la/f/pla/gt/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpgt_7', image: './la/f/pla/gt/7.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_1', image: './la/f/pla/oyb/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_2', image: './la/f/pla/oyb/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_3', image: './la/f/pla/oyb/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_4', image: './la/f/pla/oyb/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_5', image: './la/f/pla/oyb/5.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafpob_6', image: './la/f/pla/oyb/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafprp_1', image: './la/f/pla/rp/1.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafprp_2', image: './la/f/pla/rp/2.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafprp_3', image: './la/f/pla/rp/3.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafprp_4', image: './la/f/pla/rp/4.jpg', race: 'lala', sex: 'female'},
+	{id: 'lafprp_6', image: './la/f/pla/rp/6.jpg', race: 'lala', sex: 'female'},
+	{id: 'lam_1', image: './la/m/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lam_2', image: './la/m/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lam_3', image: './la/m/3.jpg', race: 'lala', sex: 'male'},
+	{id: 'lam_4', image: './la/m/4.jpg', race: 'lala', sex: 'male'},
+	{id: 'lam_5', image: './la/m/5.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdbp_1', image: './la/m/dun/bp/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdbp_2', image: './la/m/dun/bp/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdbp_3', image: './la/m/dun/bp/3.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdbp_4', image: './la/m/dun/bp/4.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdbp_5', image: './la/m/dun/bp/5.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdgt_1', image: './la/m/dun/gt/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdgt_2', image: './la/m/dun/gt/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdgt_3', image: './la/m/dun/gt/3.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdgt_4', image: './la/m/dun/gt/4.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdgt_5', image: './la/m/dun/gt/5.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdob_1', image: './la/m/dun/oyb/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdob_2', image: './la/m/dun/oyb/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdob_3', image: './la/m/dun/oyb/3.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdob_4', image: './la/m/dun/oyb/4.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamdrp_1', image: './la/m/dun/rp/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampbp_1', image: './la/m/pla/bp/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampbp_3', image: './la/m/pla/bp/3.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampbp_4', image: './la/m/pla/bp/4.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampbp_5', image: './la/m/pla/bp/5.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampbp_6', image: './la/m/pla/bp/6.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampgt_1', image: './la/m/pla/gt/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampgt_2', image: './la/m/pla/gt/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampob_1', image: './la/m/pla/oyb/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'lampob_2', image: './la/m/pla/oyb/2.jpg', race: 'lala', sex: 'male'},
+	{id: 'lamprp_1', image: './la/m/pla/rp/1.jpg', race: 'lala', sex: 'male'},
+	{id: 'mdf_1', image: './md/f/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdf_2', image: './md/f/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdf_3', image: './md/f/3.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdf_4', image: './md/f/4.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdf_5', image: './md/f/5.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdf_6', image: './md/f/6.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbw_1', image: './md/f/blw/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbw_2', image: './md/f/blw/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_1', image: './md/f/bp/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_2', image: './md/f/bp/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_3', image: './md/f/bp/3.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_4', image: './md/f/bp/4.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_5', image: './md/f/bp/5.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_6', image: './md/f/bp/6.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_7', image: './md/f/bp/7.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_8', image: './md/f/bp/8.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_9', image: './md/f/bp/9.jpg', race: 'middie', sex: 'female'},
+//same as 23	{id: 'mdfbp_10', image: './md/f/bp/10.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_11', image: './md/f/bp/11.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_12', image: './md/f/bp/12.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_13', image: './md/f/bp/13.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_14', image: './md/f/bp/14.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_15', image: './md/f/bp/15.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_16', image: './md/f/bp/16.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_17', image: './md/f/bp/17.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_18', image: './md/f/bp/18.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_19', image: './md/f/bp/19.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_20', image: './md/f/bp/20.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_21', image: './md/f/bp/21.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_22', image: './md/f/bp/22.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_23', image: './md/f/bp/23.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfbp_24', image: './md/f/bp/24.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_1', image: './md/f/gt/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_2', image: './md/f/gt/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_3', image: './md/f/gt/3.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_4', image: './md/f/gt/4.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_5', image: './md/f/gt/5.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfgt_6', image: './md/f/gt/6.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_1', image: './md/f/oyb/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_2', image: './md/f/oyb/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_3', image: './md/f/oyb/3.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_4', image: './md/f/oyb/4.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_5', image: './md/f/oyb/5.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_6', image: './md/f/oyb/6.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfob_7', image: './md/f/oyb/7.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_1', image: './md/f/rp/1.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_2', image: './md/f/rp/2.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_3', image: './md/f/rp/3.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_4', image: './md/f/rp/4.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_5', image: './md/f/rp/5.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_6', image: './md/f/rp/6.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_7', image: './md/f/rp/7.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_8', image: './md/f/rp/8.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_9', image: './md/f/rp/9.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_10', image: './md/f/rp/10.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdfrp_11', image: './md/f/rp/11.jpg', race: 'middie', sex: 'female'},
+	{id: 'mdm_1', image: './md/m/1.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdm_2', image: './md/m/2.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdm_3', image: './md/m/3.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdm_4', image: './md/m/4.jpg', race: 'middie', sex: 'male'},
+//	{id: 'mdmbw_1', image: './md/m/blw/1.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbw_2', image: './md/m/blw/2.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_1', image: './md/m/bp/1.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_2', image: './md/m/bp/2.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_3', image: './md/m/bp/3.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_4', image: './md/m/bp/4.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_5', image: './md/m/bp/5.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_6', image: './md/m/bp/6.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_7', image: './md/m/bp/7.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_8', image: './md/m/bp/8.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_9', image: './md/m/bp/9.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_10', image: './md/m/bp/10.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmbp_11', image: './md/m/bp/11.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmgt_1', image: './md/m/gt/1.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmgt_2', image: './md/m/gt/2.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmgt_3', image: './md/m/gt/3.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmgt_4', image: './md/m/gt/4.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmob_1', image: './md/m/oyb/1.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmob_2', image: './md/m/oyb/2.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmob_4', image: './md/m/oyb/4.jpg', race: 'middie', sex: 'male'},
+	{id: 'mdmob_5', image: './md/m/oyb/5.jpg', race: 'middie', sex: 'male'},
+	{id: 'mq_1', image: './mq/1.jpg', race: 'miqote', sex: 'other'},
+	{id: 'mq_2', image: './mq/2.jpg', race: 'miqote', sex: 'other'},
+	{id: 'mq_3', image: './mq/3.jpg', race: 'miqote', sex: 'other'},
+	{id: 'mq_4', image: './mq/4.jpg', race: 'miqote', sex: 'other'},
+	{id: 'mq_5', image: './mq/5.jpg', race: 'miqote', sex: 'other'},
+	{id: 'mqf_1', image: './mq/f/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqf_2', image: './mq/f/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqf_3', image: './mq/f/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqf_4', image: './mq/f/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqf_j4', name: 'Judge #4', image: './mq/f/judge4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfm_1', image: './mq/f/moo/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfm_2', image: './mq/f/moo/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfm_3', image: './mq/f/moo/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfm_4', image: './mq/f/moo/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbw_1', image: './mq/f/moo/blw/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbw_3', image: './mq/f/moo/blw/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbw_4', image: './mq/f/moo/blw/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbw_5', image: './mq/f/moo/blw/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_1', image: './mq/f/moo/bp/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_2', image: './mq/f/moo/bp/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_3', image: './mq/f/moo/bp/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_4', image: './mq/f/moo/bp/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_5', image: './mq/f/moo/bp/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_6', image: './mq/f/moo/bp/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_7', image: './mq/f/moo/bp/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_8', image: './mq/f/moo/bp/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_9', image: './mq/f/moo/bp/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_10', image: './mq/f/moo/bp/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_11', image: './mq/f/moo/bp/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_13', image: './mq/f/moo/bp/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_14', image: './mq/f/moo/bp/14.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_15', image: './mq/f/moo/bp/15.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_16', image: './mq/f/moo/bp/16.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_17', image: './mq/f/moo/bp/17.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_18', image: './mq/f/moo/bp/18.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_19', image: './mq/f/moo/bp/19.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmbp_20', image: './mq/f/moo/bp/20.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_1', image: './mq/f/moo/gt/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_2', image: './mq/f/moo/gt/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_3', image: './mq/f/moo/gt/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_4', image: './mq/f/moo/gt/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_5', image: './mq/f/moo/gt/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_6', image: './mq/f/moo/gt/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_7', image: './mq/f/moo/gt/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_8', image: './mq/f/moo/gt/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_9', image: './mq/f/moo/gt/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_11', image: './mq/f/moo/gt/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_12', image: './mq/f/moo/gt/12.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmgt_13', image: './mq/f/moo/gt/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_1', image: './mq/f/moo/oyb/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_2', image: './mq/f/moo/oyb/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_3', image: './mq/f/moo/oyb/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_4', image: './mq/f/moo/oyb/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_5', image: './mq/f/moo/oyb/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_6', image: './mq/f/moo/oyb/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_7', image: './mq/f/moo/oyb/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_8', image: './mq/f/moo/oyb/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_9', image: './mq/f/moo/oyb/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_10', image: './mq/f/moo/oyb/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_11', image: './mq/f/moo/oyb/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_12', image: './mq/f/moo/oyb/12.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_13', image: './mq/f/moo/oyb/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_14', image: './mq/f/moo/oyb/14.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_15', image: './mq/f/moo/oyb/15.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_16', image: './mq/f/moo/oyb/16.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmob_17', image: './mq/f/moo/oyb/17.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_1', image: './mq/f/moo/rp/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_2', image: './mq/f/moo/rp/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_3', image: './mq/f/moo/rp/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_4', image: './mq/f/moo/rp/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_5', image: './mq/f/moo/rp/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_6', image: './mq/f/moo/rp/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_7', image: './mq/f/moo/rp/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_8', image: './mq/f/moo/rp/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_9', image: './mq/f/moo/rp/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_10', image: './mq/f/moo/rp/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_11', image: './mq/f/moo/rp/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_13', image: './mq/f/moo/rp/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_14', image: './mq/f/moo/rp/14.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_15', image: './mq/f/moo/rp/15.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_16', image: './mq/f/moo/rp/16.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfmrp_17', image: './mq/f/moo/rp/17.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_1', image: './mq/f/sun/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_2', image: './mq/f/sun/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_3', image: './mq/f/sun/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_4', image: './mq/f/sun/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_5', image: './mq/f/sun/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_6', image: './mq/f/sun/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfs_7', image: './mq/f/sun/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbw_1', image: './mq/f/sun/blw/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbw_2', image: './mq/f/sun/blw/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbw_3', image: './mq/f/sun/blw/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbw_4', image: './mq/f/sun/blw/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbw_5', image: './mq/f/sun/blw/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_1', image: './mq/f/sun/bp/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_2', image: './mq/f/sun/bp/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_3', image: './mq/f/sun/bp/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_4', image: './mq/f/sun/bp/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_5', image: './mq/f/sun/bp/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_7', image: './mq/f/sun/bp/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_8', image: './mq/f/sun/bp/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsbp_9', image: './mq/f/sun/bp/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_1', image: './mq/f/sun/gt/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_2', image: './mq/f/sun/gt/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_3', image: './mq/f/sun/gt/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_4', image: './mq/f/sun/gt/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_5', image: './mq/f/sun/gt/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_6', image: './mq/f/sun/gt/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_7', image: './mq/f/sun/gt/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_8', image: './mq/f/sun/gt/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_9', image: './mq/f/sun/gt/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_10', image: './mq/f/sun/gt/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsgt_11', image: './mq/f/sun/gt/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_1', image: './mq/f/sun/oyb/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_2', image: './mq/f/sun/oyb/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_3', image: './mq/f/sun/oyb/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_4', image: './mq/f/sun/oyb/4.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_5', image: './mq/f/sun/oyb/5.jpg', race: 'miqote', sex: 'female'},
+//	{id: 'mqfsob_6', image: './mq/f/sun/oyb/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_7', image: './mq/f/sun/oyb/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_8', image: './mq/f/sun/oyb/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_9', image: './mq/f/sun/oyb/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_10', image: './mq/f/sun/oyb/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_11', image: './mq/f/sun/oyb/11.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_12', image: './mq/f/sun/oyb/12.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_13', image: './mq/f/sun/oyb/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_14', image: './mq/f/sun/oyb/14.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsob_15', image: './mq/f/sun/oyb/15.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_1', image: './mq/f/sun/rp/1.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_2', image: './mq/f/sun/rp/2.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_3', image: './mq/f/sun/rp/3.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_4', image: './mq/f/sun/rp/4.jpg', race: 'etc', sex: 'female'},
+	{id: 'mqfsrp_5', image: './mq/f/sun/rp/5.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_6', image: './mq/f/sun/rp/6.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_7', image: './mq/f/sun/rp/7.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_8', image: './mq/f/sun/rp/8.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_9', image: './mq/f/sun/rp/9.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_10', image: './mq/f/sun/rp/10.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_12', image: './mq/f/sun/rp/12.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_13', image: './mq/f/sun/rp/13.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_14', image: './mq/f/sun/rp/14.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqfsrp_15', image: './mq/f/sun/rp/15.jpg', race: 'miqote', sex: 'female'},
+	{id: 'mqm_1', image: './mq/m/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_1', image: './mq/m/moo/1/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_2', image: './mq/m/moo/1/2.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_3', image: './mq/m/moo/1/3.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_4', image: './mq/m/moo/1/4.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_5', image: './mq/m/moo/1/5.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm1_6', image: './mq/m/moo/1/6.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm2_1', image: './mq/m/moo/2/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm3_1', image: './mq/m/moo/3/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm3_2', image: './mq/m/moo/3/2.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm3_3', image: './mq/m/moo/3/3.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm4_1', image: './mq/m/moo/4/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm4_2', image: './mq/m/moo/4/2.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm4_3', image: './mq/m/moo/4/3.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm4_4', image: './mq/m/moo/4/4.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqmm4_5', image: './mq/m/moo/4/5.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms1_2', image: './mq/m/sun/1/2.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms1_3', image: './mq/m/sun/1/3.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms2_1', image: './mq/m/sun/2/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms4_1', image: './mq/m/sun/4/1.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms4_2', image: './mq/m/sun/4/2.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms4_4', image: './mq/m/sun/4/4.jpg', race: 'miqote', sex: 'male'},
+	{id: 'mqms4_5', image: './mq/m/sun/4/5.jpg', race: 'miqote', sex: 'male'},
+	{id: 'rof_1', image: './roe/f/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rof_2', image: './roe/f/2.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbw_1', image: './roe/f/blw/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbw_2', image: './roe/f/blw/2.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbw_3', image: './roe/f/blw/3.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbw_4', image: './roe/f/blw/4.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbp_1', image: './roe/f/bp/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofbp_2', image: './roe/f/bp/2.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofgt_1', image: './roe/f/gt/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofgt_2', image: './roe/f/gt/2.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofgt_3', image: './roe/f/gt/3.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofob_1', image: './roe/f/oyb/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofob_2', image: './roe/f/oyb/2.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofob_3', image: './roe/f/oyb/3.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofob_4', image: './roe/f/oyb/4.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofrp_1', image: './roe/f/rp/1.jpg', race: 'roe', sex: 'female'},
+	{id: 'rofrp_3', image: './roe/f/rp/3.jpg', race: 'roe', sex: 'female'},
+	{id: 'rom_1', image: './roe/m/1.jpg', race: 'roe', sex: 'male'},
+	{id: 'rom_2', image: './roe/m/2.jpg', race: 'roe', sex: 'male'},
+	{id: 'rom_3', image: './roe/m/3.jpg', race: 'roe', sex: 'male'},
+	{id: 'rombw_1', image: './roe/m/blw/1.jpg', race: 'roe', sex: 'male'},
+	{id: 'romgt_1', image: './roe/m/gt/1.jpg', race: 'roe', sex: 'male'},
+	{id: 'romob_1', image: './roe/m/oyb/1.jpg', race: 'roe', sex: 'male'},
+	{id: 'romob_2', image: './roe/m/oyb/2.jpg', race: 'roe', sex: 'male'},
+	{id: 'romrp_1', image: './roe/m/rp/1.jpg', race: 'roe', sex: 'male'},
+	{id: 'vif_1', image: './vi/f/1.jpg', race: 'viera', sex: 'female'},
+	{id: 'vif_2', image: './vi/f/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vif_3', image: './vi/f/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vif_4', image: './vi/f/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbw_1', image: './vi/f/blw/1.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbw_2', image: './vi/f/blw/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbw_3', image: './vi/f/blw/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbw_4', image: './vi/f/blw/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_2', image: './vi/f/bp/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_3', image: './vi/f/bp/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_4', image: './vi/f/bp/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_5', image: './vi/f/bp/5.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_6', image: './vi/f/bp/6.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_7', image: './vi/f/bp/7.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_8', image: './vi/f/bp/8.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_9', image: './vi/f/bp/9.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_10', image: './vi/f/bp/10.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifbp_11', image: './vi/f/bp/11.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifgt_1', image: './vi/f/gt/1.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifgt_2', image: './vi/f/gt/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifgt_3', image: './vi/f/gt/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifgt_4', image: './vi/f/gt/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifgt_5', image: './vi/f/gt/5.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_1', image: './vi/f/oyb/1.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_2', image: './vi/f/oyb/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_3', image: './vi/f/oyb/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_4', image: './vi/f/oyb/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_5', image: './vi/f/oyb/5.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifob_6', image: './vi/f/oyb/6.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifrp_1', image: './vi/f/rp/1.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifrp_2', image: './vi/f/rp/2.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifrp_3', image: './vi/f/rp/3.jpg', race: 'viera', sex: 'female'},
+	{id: 'vifrp_4', image: './vi/f/rp/4.jpg', race: 'viera', sex: 'female'},
+	{id: 'vim_1', image: './vi/m/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vim_2', image: './vi/m/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vim_3', image: './vi/m/3.jpg', race: 'viera', sex: 'male'},
+	{id: 'vim_4', image: './vi/m/4.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbw_1', image: './vi/m/blw/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbw_2', image: './vi/m/blw/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_1', image: './vi/m/bp/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_2', image: './vi/m/bp/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_3', image: './vi/m/bp/3.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_4', image: './vi/m/bp/4.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_5', image: './vi/m/bp/5.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_6', image: './vi/m/bp/6.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_7', image: './vi/m/bp/7.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_8', image: './vi/m/bp/8.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_9', image: './vi/m/bp/9.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_10', image: './vi/m/bp/10.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_11', image: './vi/m/bp/11.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimbp_12', image: './vi/m/bp/12.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_1', image: './vi/m/gt/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_2', image: './vi/m/gt/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_3', image: './vi/m/gt/3.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_4', image: './vi/m/gt/4.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_5', image: './vi/m/gt/5.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_6', image: './vi/m/gt/6.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_7', image: './vi/m/gt/7.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_8', image: './vi/m/gt/8.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_9', image: './vi/m/gt/9.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_10', image: './vi/m/gt/10.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimgt_11', image: './vi/m/gt/11.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimob_1', image: './vi/m/oyb/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimob_2', image: './vi/m/oyb/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimob_3', image: './vi/m/oyb/3.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_1', image: './vi/m/rp/1.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_2', image: './vi/m/rp/2.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_3', image: './vi/m/rp/3.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_4', image: './vi/m/rp/4.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_5', image: './vi/m/rp/5.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_6', image: './vi/m/rp/6.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_7', image: './vi/m/rp/7.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_8', image: './vi/m/rp/8.jpg', race: 'viera', sex: 'male'},
+	{id: 'vimrp_9', image: './vi/m/rp/9.jpg', race: 'viera', sex: 'male'}
+];
+
+var uirace = ["au ra", "elezen", "etc", "highlander", "hrothgar", "lala", "middie", "miqote", "roe", "viera"];
+
+var myPicker = new picker.Picker({
+    items: items,
+	localStorageKey: 'dtpicker-state',
+	defaultSettings: {
+		minBatchSize: 3,
+        maxBatchSize: 20,
+		races: ['au ra', 'elezen', 'etc', 'highlander', 'hrothgar', 'lala', 'middie', 'miqote', 'roe', 'viera'],
+		sexes: ['female', 'male', 'other']
+    },
+	shouldIncludeItem: function(item, settings) {
+        // help
+		return settings.races.indexOf(item.race) !== -1 && settings.sexes.indexOf(item.sex) !== -1;
+	}
+});
+
+var pickerUI = new PickerUI(myPicker, {
+    elements: {
+        pick: "#pick",
+        pass: "#pass",
+        undo: "#undo",
+        redo: "#redo",
+        evaluating: "#evaluating",
+        favorites: "#favorites",
+		settings: {
+			minBatchSize: '#min-batch-size',
+			maxBatchSize: '#max-batch-size',
+			races: '.races',
+			sexes: '.sexes'
+			}
+		},
+		/* Remaining counter */
+		    onUpdate: function(updateType) {
+        var totalEbins = this.picker.state.items.length;
+        var favorites = this.picker.state.arrays.favorites.length;
+        var eliminated = this.picker.state.arrays.eliminated.length;
+        var remaining = Math.max(0, totalEbins - favorites - eliminated - 1);
+
+        $("#remaining").text(remaining);
+		},
+});
+
+pickerUI.initialize();
+updateSelectAll(pickerUI.getSetting('races'), $("#races-all"), uirace);
+
+/* Sortable favorites - you can safely remove this, and the Sortable.min.js script, if you don't want to be able to sort your favorite list. */
+var sortable = new Sortable(pickerUI.elem.favorites.get(0), {
+    draggable: '.item',
+    animation: 100,
+    onStart: function() {
+        pickerUI.elem.favorites.addClass("sorting");
+    },
+    onEnd: function() {
+        pickerUI.elem.favorites.removeClass("sorting");
+    },
+    onUpdate: function() {
+        myPicker.setFavorites(pickerUI.elem.favorites.children().map(function() {
+            return pickerUI.getItem(this);
+        }).get());
+        pickerUI.update(true);
+    }
+});
+/* End sortable favorites */
+
+/* Select-all filters, code from n8hynes favorite-picker */ 
+pickerUI.elem.settings.races.on('change', function() {
+    updateSelectAll(pickerUI.getSetting('races'), $("#races-all"), uirace);
+});
+
+function updateSelectAll(setting, allCheckbox, itemList) {
+    if (setting.length < itemList.length && setting.length > 0) {
+        allCheckbox.prop("indeterminate", true);
+    } else {
+        allCheckbox.prop("indeterminate", false);
+    }
+
+    if (setting.length === itemList.length) {
+        allCheckbox.prop("checked", true);
+    } else if (setting.length === 0) {
+        allCheckbox.prop("checked", false);
+    }
+}
+
+$("#races-all").on('change', function() {
+    pickerUI.setSetting('races', $(this).prop("checked") ? uirace : []);
+    myPicker.setSettings(pickerUI.getSettings());
+    pickerUI.update(true, 'setting');
+});
+
+/* Make reset button  */
+document.getElementById("reset").addEventListener("click", () => {pickerUI.reset()});
+
+</script>
+</body>
+</html>
