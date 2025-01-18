@@ -1,0 +1,35 @@
+RACES
+au - au ra
+el - elezen
+etc - modbeasts 
+hi - highlander
+hr - hrothgar
+la - lalafell
+md - midlanders
+mq- miqo'te
+roe - roegadyn
+vi - viera
+
+f and m are Female and Male
+based on Character model, but if people visibly mod things like catboy clan marks on a girl, I'll leave it out and label it as 'other'
+
+SUBRACE
+ra - raen
+xa - xaela
+moo - moonkeeper
+sun - sunseeker
+dun - dunesfolk
+pla - plainsfolk
+
+Face numbers
+Au Ra is easy to sort by face type
+The only other race sorted by face number is male Miqo'te because I can easily tell the difference 
+
+EYE COLOUR
+blw - Black, white, grey
+bp - Blue to purple
+gt - Green to teal
+oyb - Orange, yellow, brown
+rp - Red to pink
+If I can't tell the color of the eyes from the picture I cropped, I'll usually leave it out especially if the character is easy to tell apart from others
+Same with heterochromia
